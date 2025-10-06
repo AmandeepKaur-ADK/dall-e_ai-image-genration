@@ -15,67 +15,81 @@ const CreatePost = () => {
   });
   const [generatingImg, setGeneratingImg] = useState(false);
   const [loading, setLoading] = useState(false)
-  
-  const generateImage = async () =>{
-    if(form.prompt){
-      try{
+
+  const generateImage = async () => {
+    if (form.prompt) {
+      try {
         setGeneratingImg(true);
-        const response = await fetch('http://localhost:8080/api/v1/dalle', {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api/v1/dalle`, {
           method: 'POST',
-          headers:{
-            'Content-Type' : 'application/json',
+          headers: {
+            'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ prompt: form.prompt})
+          body: JSON.stringify({ prompt: form.prompt })
         })
         const data = await response.json();
-        setform({ ...form, photo: `data:image/jpeg;base64,${data.photo}`})
-      }catch(error){
+        setform({ ...form, photo: `data:image/jpeg;base64,${data.photo}` })
+      } catch (error) {
         alert(error)
         // console.log(error);
-      }finally{
+      } finally {
         setGeneratingImg(false)
       }
-    }else{
+    } else {
       alert('Please enter a prompt')
     }
   }
 
   const handleSubmit = async (e) => {
-    
+
     e.preventDefault();
 
-    if(form.prompt && form.photo){
+    if (form.prompt && form.photo) {
       setLoading(true);
-      try{
-        const response = await fetch('http://localhost:8080/api/v1/post', {
+      try {
+        // Extract just the base64 data (remove the data:image/jpeg;base64, prefix)
+        const base64Data = form.photo.replace(/^data:image\/[a-z]+;base64,/, '');
+        
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api/v1/post`, {
           method: 'POST',
-          headers:{
-            'Content-Type' : 'application/json',
+          headers: {
+            'Content-Type': 'application/json',
           },
-          body: JSON.stringify({...form})
+          body: JSON.stringify({ 
+            name: form.name,
+            prompt: form.prompt,
+            photo: base64Data  // Send just the base64 data
+          })
         });
 
-        await response.json();
-        alert("Success")
-        navigate('/');
+        const result = await response.json();
+        console.log('Server response:', result); // Debug log
+        
+        if (response.ok && result.success) {
+          alert("Success! Your image has been shared with the community.");
+          navigate('/');
+        } else {
+          console.error('Error details:', result);
+          alert("Failed to share image: " + (result.message || JSON.stringify(result)));
+        }
 
-      }catch(err){
-        alert(err);
+      } catch (err) {
+        alert("Error: " + err.message);
         console.log(err);
-      }finally{
+      } finally {
         setLoading(false);
       }
-    }else{
+    } else {
       alert('Please enter a prompt and generate an image')
     }
   }
 
   const handleChange = (e) => {
-    setform({...form, [e.target.name] : e.target.value})
+    setform({ ...form, [e.target.name]: e.target.value })
   }
-  const handleSurpriseMe = () =>{
+  const handleSurpriseMe = () => {
     const randomPrompt = getRandomPrompt(form.prompt);
-    setform({...form, prompt: randomPrompt})
+    setform({ ...form, prompt: randomPrompt })
 
   }
   return (
@@ -89,44 +103,44 @@ const CreatePost = () => {
         <div className='flex flex-col gap-5'>
           <FormField LabelName="Your Name" type="text" name="name" placeholder="John Doe" value={form.name} handleChange={handleChange} />
           <FormField LabelName="Prompt" type="text" name="prompt" placeholder="A plush toy robot sitting against a yellow wall" value={form.prompt} handleChange={handleChange} isSurpriseMe handleSurpriseMe={handleSurpriseMe} />
-       <div className='relative bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg h-64 flex justify-center items-center'>
-        {form.photo ? (
-          <img
-          src={form.photo}
-          alt = {form.prompt}
-          className='w-full h-full object contain'
-          />
-        ):(
-          <img
-          src={preview}
-          alt = "preview"
-          className='w-6/12 h-6/12 object-contain opacity-40'
-          />
-        )}
-        {generatingImg && (
-          <div className='absolute inset-0 z-0 flex justify-center items-center bg-[rgba(0,0,0,0.5)] rounded-lg'>
-          <Loader/>
+          <div className='relative bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg h-64 flex justify-center items-center'>
+            {form.photo ? (
+              <img
+                src={form.photo}
+                alt={form.prompt}
+                className='w-full h-full object contain'
+              />
+            ) : (
+              <img
+                src={preview}
+                alt="preview"
+                className='w-6/12 h-6/12 object-contain opacity-40'
+              />
+            )}
+            {generatingImg && (
+              <div className='absolute inset-0 z-0 flex justify-center items-center bg-[rgba(0,0,0,0.5)] rounded-lg'>
+                <Loader />
+              </div>
+            )}
           </div>
-        )}
-       </div>
         </div>
 
         <div className='mt-5 flex gap-5'>
-        <button
-        type='button'
-        onClick={generateImage}
-        className='tex-white bg-green-700 font-medium rounded-md text-sm w-full sm:w-auto px-5 py-2.5 text-center'>
-        {generatingImg ? 'Generating...' : 'Generate'}
+          <button
+            type='button'
+            onClick={generateImage}
+            className='tex-white bg-green-700 font-medium rounded-md text-sm w-full sm:w-auto px-5 py-2.5 text-center'>
+            {generatingImg ? 'Generating...' : 'Generate'}
 
-        </button>
+          </button>
         </div>
         <div className='mt-100'>
-        <p>Once you have created the image you want, you can share it with others in the Community </p>
-        <button
-        type='submit'
-        className='mt-3 text-white bg-[#6469ff] font-medium rounded-md text-sm w-full sm:w-auto px-5 py-2.5 text-center'>
-          {loading ? 'Sharing...' : "Share with the community"}
-        </button>
+          <p>Once you have created the image you want, you can share it with others in the Community </p>
+          <button
+            type='submit'
+            className='mt-3 text-white bg-[#6469ff] font-medium rounded-md text-sm w-full sm:w-auto px-5 py-2.5 text-center'>
+            {loading ? 'Sharing...' : "Share with the community"}
+          </button>
         </div>
       </form>
     </section>
